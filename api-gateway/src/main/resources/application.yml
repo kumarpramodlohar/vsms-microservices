@@ -1,0 +1,68 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates: [Path=/api/v1/auth/**]
+
+        - id: master-service
+          uri: lb://master-service
+          predicates: [Path=/api/v1/master/**]
+
+        - id: customer-service
+          uri: lb://customer-service
+          predicates: [Path=/api/v1/customers/**]
+
+        - id: sales-service
+          uri: lb://sales-service
+          predicates: [Path=/api/v1/sales-orders/**, Path=/api/v1/offers/**]
+
+        - id: purchase-service
+          uri: lb://purchase-service
+          predicates: [Path=/api/v1/purchase/**]
+
+        - id: inventory-service
+          uri: lb://inventory-service
+          predicates: [Path=/api/v1/stock/**]
+
+        - id: fulfilment-service
+          uri: lb://fulfilment-service
+          predicates: [Path=/api/v1/invoices/**, Path=/api/v1/delivery-challans/**]
+
+        - id: cost-service
+          uri: lb://cost-service
+          predicates: [Path=/api/v1/cost/**]
+
+        - id: hr-service
+          uri: lb://hr-service
+          predicates: [Path=/api/v1/hr/**]
+
+        - id: drs-service
+          uri: lb://drs-service
+          predicates: [Path=/api/v1/drs/**]
+
+        - id: report-service
+          uri: lb://report-service
+          predicates: [Path=/api/v1/reports/**]
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWT_JWKS_URI:http://auth-service:8090/api/v1/auth/jwks}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://eureka-server:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, gateway, prometheus

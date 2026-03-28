@@ -1,0 +1,229 @@
+version: '3.9'
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────
+
+  eureka-server:
+    build: ./eureka-server
+    ports: ["8761:8761"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports: ["5672:5672", "15672:15672"]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  zipkin:
+    image: openzipkin/zipkin:3
+    ports: ["9411:9411"]
+
+  # ── MySQL databases (one schema per service) ─────────
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./infra/mysql/init:/docker-entrypoint-initdb.d
+    ports: ["3306:3306"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+
+  # ── Gateway ──────────────────────────────────────────
+
+  api-gateway:
+    build: ./api-gateway
+    ports: ["8080:8080"]
+    environment:
+      EUREKA_URL: ${EUREKA_URL}
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  # ── Java Services ────────────────────────────────────
+
+  auth-service:
+    build: ./services/auth-service
+    ports: ["8090:8090"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_auth
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+
+  master-service:
+    build: ./services/master-service
+    ports: ["8083:8083"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_master
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+
+  customer-service:
+    build: ./services/customer-service
+    ports: ["8082:8082"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_customer
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+
+  sales-service:
+    build: ./services/sales-service
+    ports: ["8085:8085"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_sales
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  purchase-service:
+    build: ./services/purchase-service
+    ports: ["8086:8086"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_purchase
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  inventory-service:
+    build: ./services/inventory-service
+    ports: ["8087:8087"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_inventory
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  fulfilment-service:
+    build: ./services/fulfilment-service
+    ports: ["8088:8088"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_fulfilment
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  cost-service:
+    build: ./services/cost-service
+    ports: ["8089:8089"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_cost
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  hr-service:
+    build: ./services/hr-service
+    ports: ["8084:8084"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_hr
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_URL: ${EUREKA_URL}
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ── Node.js Services ─────────────────────────────────
+
+  notification-service:
+    build: ./services/notification-service
+    ports: ["3001:3001"]
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  drs-service:
+    build: ./services/drs-service
+    ports: ["3002:3002"]
+    environment:
+      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/vsms_drs
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ── Go Services ───────────────────────────────────────
+
+  report-service:
+    build: ./services/report-service
+    ports: ["8091:8091"]
+    environment:
+      SALES_SERVICE_URL: ${SALES_SERVICE_URL}
+      FULFILMENT_SERVICE_URL: ${FULFILMENT_SERVICE_URL}
+      HR_SERVICE_URL: ${HR_SERVICE_URL}
+      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+
+volumes:
+  mysql-data:

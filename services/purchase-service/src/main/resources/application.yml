@@ -1,0 +1,40 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: purchase-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/vsms_purchase}
+    username: root
+    password: ${MYSQL_ROOT_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+  flyway:
+    enabled: true
+    schemas: vsms_purchase
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: 5672
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWT_JWKS_URI:http://localhost:8090/api/v1/auth/jwks}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
