@@ -1,229 +1,305 @@
-version: '3.9'
+version: '3.8'
 
 services:
-
-  # ── Infrastructure ──────────────────────────────────
-
+  # Infrastructure Services
   eureka-server:
     build: ./eureka-server
-    ports: ["8761:8761"]
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - vsms-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 10s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 5
 
   rabbitmq:
-    image: rabbitmq:3.13-management
-    ports: ["5672:5672", "15672:15672"]
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    networks:
+      - vsms-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    ports: ["6379:6379"]
-
-  zipkin:
-    image: openzipkin/zipkin:3
-    ports: ["9411:9411"]
-
-  # ── MySQL databases (one schema per service) ─────────
-
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-    volumes:
-      - mysql-data:/var/lib/mysql
-      - ./infra/mysql/init:/docker-entrypoint-initdb.d
-    ports: ["3306:3306"]
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      retries: 5
-
-  # ── Gateway ──────────────────────────────────────────
-
+  # Core Services
   api-gateway:
     build: ./api-gateway
-    ports: ["8080:8080"]
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
     environment:
-      EUREKA_URL: ${EUREKA_URL}
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
     depends_on:
       eureka-server:
         condition: service_healthy
-
-  # ── Java Services ────────────────────────────────────
+    networks:
+      - vsms-network
 
   auth-service:
     build: ./services/auth-service
-    ports: ["8090:8090"]
+    container_name: auth-service
+    ports:
+      - "8091:8091"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_auth
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      EUREKA_URL: ${EUREKA_URL}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_auth?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - vsms-network
 
   master-service:
     build: ./services/master-service
-    ports: ["8083:8083"]
+    container_name: master-service
+    ports:
+      - "8092:8092"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_master
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      EUREKA_URL: ${EUREKA_URL}
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - vsms-network
 
   customer-service:
     build: ./services/customer-service
-    ports: ["8082:8082"]
+    container_name: customer-service
+    ports:
+      - "8093:8093"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_customer
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      EUREKA_URL: ${EUREKA_URL}
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_customer?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - vsms-network
 
   sales-service:
     build: ./services/sales-service
-    ports: ["8085:8085"]
+    container_name: sales-service
+    ports:
+      - "8094:8094"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_sales
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      EUREKA_URL: ${EUREKA_URL}
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_sales?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - vsms-network
 
   purchase-service:
     build: ./services/purchase-service
-    ports: ["8086:8086"]
+    container_name: purchase-service
+    ports:
+      - "8095:8095"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_purchase
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      EUREKA_URL: ${EUREKA_URL}
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_purchase?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - vsms-network
 
   inventory-service:
     build: ./services/inventory-service
-    ports: ["8087:8087"]
+    container_name: inventory-service
+    ports:
+      - "8096:8096"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_inventory
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      EUREKA_URL: ${EUREKA_URL}
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_inventory?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - vsms-network
 
   fulfilment-service:
     build: ./services/fulfilment-service
-    ports: ["8088:8088"]
+    container_name: fulfilment-service
+    ports:
+      - "8097:8097"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_fulfilment
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      EUREKA_URL: ${EUREKA_URL}
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_fulfilment?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - vsms-network
 
   cost-service:
     build: ./services/cost-service
-    ports: ["8089:8089"]
+    container_name: cost-service
+    ports:
+      - "8098:8098"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_cost
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      EUREKA_URL: ${EUREKA_URL}
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_cost?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - vsms-network
 
   hr-service:
     build: ./services/hr-service
-    ports: ["8084:8084"]
+    container_name: hr-service
+    ports:
+      - "8099:8099"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_hr
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      EUREKA_URL: ${EUREKA_URL}
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_hr?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
-
-  # ── Node.js Services ─────────────────────────────────
-
-  notification-service:
-    build: ./services/notification-service
-    ports: ["3001:3001"]
-    environment:
-      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
-    depends_on:
+      eureka-server:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - vsms-network
 
   drs-service:
     build: ./services/drs-service
-    ports: ["3002:3002"]
+    container_name: drs-service
+    ports:
+      - "8100:8100"
     environment:
-      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/vsms_drs
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
-      CUSTOMER_SERVICE_URL: ${CUSTOMER_SERVICE_URL}
-      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vsms_drs?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - vsms-network
 
-  # ── Go Services ───────────────────────────────────────
-
-  report-service:
-    build: ./services/report-service
-    ports: ["8091:8091"]
+  # Database
+  mysql:
+    image: mysql:8.0
+    container_name: vsms-mysql
     environment:
-      SALES_SERVICE_URL: ${SALES_SERVICE_URL}
-      FULFILMENT_SERVICE_URL: ${FULFILMENT_SERVICE_URL}
-      HR_SERVICE_URL: ${HR_SERVICE_URL}
-      JWT_JWKS_URI: ${JWT_JWKS_URI}
-      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root}
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./infra/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_PASSWORD:-root}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - vsms-network
+
+networks:
+  vsms-network:
+    driver: bridge
 
 volumes:
-  mysql-data:
+  mysql_data:
