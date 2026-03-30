@@ -19,6 +19,7 @@ spring:
   flyway:
     enabled: true
     schemas: vsms_auth
+    baselineOnMigrate: true
   security:
     oauth2:
       resourceserver:
