@@ -1,4 +1,4 @@
-upackage com.vsms.events.config;
+package com.vsms.events.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
