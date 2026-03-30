@@ -5,28 +5,24 @@ spring:
   application:
     name: customer-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/vsms_customer}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/vsms_customer_service}
     username: root
     password: ${MYSQL_ROOT_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
   flyway:
     enabled: true
-    schemas: vsms_customer
+    schemas: vsms_customer_service
+    baselineOnMigrate: true
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: 5672
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${JWT_JWKS_URI:http://localhost:8090/api/v1/auth/jwks}
 
 eureka:
   client:

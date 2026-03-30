@@ -109,7 +109,59 @@ CREATE TABLE IF NOT EXISTS adm_user_type_menu (
     INDEX idx_menu_id (menu_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. adm_login_history - Login tracking
+-- 7. adm_permissions - Permission definitions
+CREATE TABLE IF NOT EXISTS adm_permissions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    permission_name VARCHAR(100) NOT NULL,
+    description VARCHAR(500),
+    resource VARCHAR(100),
+    action VARCHAR(50),
+    active VARCHAR(1) DEFAULT 'Y',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100),
+    version BIGINT DEFAULT 0,
+    INDEX idx_permission_name (permission_name),
+    INDEX idx_resource (resource),
+    INDEX idx_action (action)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8. adm_roles - Role definitions
+CREATE TABLE IF NOT EXISTS adm_roles (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    role_name VARCHAR(100) NOT NULL,
+    description VARCHAR(500),
+    active VARCHAR(1) DEFAULT 'Y',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100),
+    version BIGINT DEFAULT 0,
+    INDEX idx_role_name (role_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 9. adm_role_permission - Role permission mapping
+CREATE TABLE IF NOT EXISTS adm_role_permission (
+    role_id BIGINT NOT NULL,
+    permission_id BIGINT NOT NULL,
+    PRIMARY KEY (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES adm_roles(id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES adm_permissions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 10. adm_user_role - User role mapping
+CREATE TABLE IF NOT EXISTS adm_user_role (
+    user_id BINARY(16) NOT NULL,
+    role_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    FOREIGN KEY (user_id) REFERENCES adm_users(id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES adm_roles(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 11. adm_login_history - Login tracking
 CREATE TABLE IF NOT EXISTS adm_login_history (
     id INT PRIMARY KEY AUTO_INCREMENT,
     user_id VARCHAR(100),

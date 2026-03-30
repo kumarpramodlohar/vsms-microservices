@@ -16,8 +16,11 @@ This library acts as a **common dependency layer** that:
 ## Responsibilities
 
 ### 1. **Security Configuration**
-- Provides JWT-based OAuth2 resource server configuration
+- Provides comprehensive JWT-based OAuth2 resource server configuration
 - Implements consistent security filter chains across all services
+- Configures CORS policies with configurable allowed origins
+- Enables HSTS (HTTP Strict Transport Security) headers with conditional activation
+- Provides custom authentication error responses
 - Configures CSRF protection and endpoint authorization rules
 - Permits public access to health and actuator endpoints while securing all other endpoints
 
@@ -66,12 +69,16 @@ shared/vsms-common/
 ## Key Components
 
 ### SecurityConfig
-- **Purpose**: Configures JWT-based OAuth2 resource server security
+- **Purpose**: Configures comprehensive JWT-based OAuth2 resource server security
 - **Features**:
   - Disables CSRF protection (appropriate for stateless REST APIs)
+  - Configures CORS with configurable allowed origins (`app.security.cors.allowed-origins`)
+  - Enables HSTS headers conditionally (`app.security.headers.hsts.enabled`)
+  - Provides custom authentication error responses
   - Permits unauthenticated access to `/actuator/**` and `/health` endpoints
   - Requires authentication for all other endpoints
   - Configures JWT token validation
+  - Sets session management to stateless
 
 ### GlobalExceptionHandler
 - **Purpose**: Provides centralized exception handling across all services
@@ -156,7 +163,21 @@ throw new ValidationException("Email format is invalid");
 
 ### Security Configuration
 
-The `SecurityConfig` is automatically applied to all services that include this library. No additional configuration is needed unless a service requires custom security rules.
+The `SecurityConfig` is automatically applied to all services that include this library. No additional configuration is needed unless a service requires custom security rules (like `auth-service`).
+
+#### Configuration Properties
+
+Services can customize security behavior through these application properties:
+
+```yaml
+app:
+  security:
+    cors:
+      allowed-origins: "http://localhost:8080,http://localhost:3000"  # Comma-separated allowed origins
+    headers:
+      hsts:
+        enabled: false  # Set to true for production HTTPS environments
+```
 
 ## Benefits
 

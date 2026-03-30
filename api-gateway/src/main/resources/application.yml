@@ -1,68 +1,95 @@
 server:
-  port: 8080
+ port: 8080
+
 spring:
-  application:
-    name: api-gateway
-  cloud:
-    gateway:
-      routes:
-        - id: auth-service
-          uri: lb://auth-service
-          predicates: [Path=/api/v1/auth/**]
+ application:
+   name: api-gateway
+ cloud:
+   gateway:
+     globalcors:
+       cors-configurations:
+         '[/**]':
+           allowed-origin-patterns: "*"
+           allowed-methods: "*"
+           allowed-headers: "*"
+           allow-credentials: true
+           max-age: 3600
 
-        - id: master-service
-          uri: lb://master-service
-          predicates: [Path=/api/v1/master/**]
+ security:
+   oauth2:
+     resourceserver:
+       jwt:
+         jwk-set-uri: ${JWT_JWKS_URI:http://auth-service:8090/api/v1/auth/jwks}
+ redis:
+   host: localhost
+   port: 6379
 
-        - id: customer-service
-          uri: lb://customer-service
-          predicates: [Path=/api/v1/customers/**]
-
-        - id: sales-service
-          uri: lb://sales-service
-          predicates: [Path=/api/v1/sales-orders/**, Path=/api/v1/offers/**]
-
-        - id: purchase-service
-          uri: lb://purchase-service
-          predicates: [Path=/api/v1/purchase/**]
-
-        - id: inventory-service
-          uri: lb://inventory-service
-          predicates: [Path=/api/v1/stock/**]
-
-        - id: fulfilment-service
-          uri: lb://fulfilment-service
-          predicates: [Path=/api/v1/invoices/**, Path=/api/v1/delivery-challans/**]
-
-        - id: cost-service
-          uri: lb://cost-service
-          predicates: [Path=/api/v1/cost/**]
-
-        - id: hr-service
-          uri: lb://hr-service
-          predicates: [Path=/api/v1/hr/**]
-
-        - id: drs-service
-          uri: lb://drs-service
-          predicates: [Path=/api/v1/drs/**]
-
-        - id: report-service
-          uri: lb://report-service
-          predicates: [Path=/api/v1/reports/**]
-
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${JWT_JWKS_URI:http://auth-service:8090/api/v1/auth/jwks}
+resilience4j:
+ ratelimiter:
+   configs:
+     default:
+       limit-for-period: 10
+       limit-refresh-period: 60s
+       timeout-duration: 0s
+       register-health-indicator: true
+       event-consumer-buffer-size: 100
+   instances:
+     gatewayRateLimiter:
+       base-config: default
+ circuitbreaker:
+   configs:
+     default:
+       register-health-indicator: true
+       sliding-window-size: 10
+       minimum-number-of-calls: 5
+       permitted-number-of-calls-in-half-open-state: 3
+       automatic-transition-from-open-to-half-open-enabled: true
+       wait-duration-in-open-state: 5s
+       failure-rate-threshold: 50
+       event-consumer-buffer-size: 10
+       record-exceptions:
+         - org.springframework.web.client.HttpServerErrorException
+         - java.io.IOException
+         - java.util.concurrent.TimeoutException
+         - org.springframework.web.client.ResourceAccessException
+   instances:
+     authCircuitBreaker:
+       base-config: default
+     masterCircuitBreaker:
+       base-config: default
+     customerCircuitBreaker:
+       base-config: default
+     salesCircuitBreaker:
+       base-config: default
+     purchaseCircuitBreaker:
+       base-config: default
+     inventoryCircuitBreaker:
+       base-config: default
+     fulfilmentCircuitBreaker:
+       base-config: default
+     costCircuitBreaker:
+       base-config: default
+     hrCircuitBreaker:
+       base-config: default
+     drsCircuitBreaker:
+       base-config: default
+     reportCircuitBreaker:
+       base-config: default
 
 eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_URL:http://eureka-server:8761/eureka/}
+ client:
+   service-url:
+     defaultZone: ${EUREKA_URL:http://eureka-server:8761/eureka/}
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health, info, gateway, prometheus
+ endpoints:
+   web:
+     exposure:
+       include: health, info, gateway, prometheus, resilience4j
+ endpoint:
+   health:
+     show-details: always
+ metrics:
+   export:
+     prometheus:
+       enabled: true

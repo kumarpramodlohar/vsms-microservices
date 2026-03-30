@@ -1147,4 +1147,20 @@ make local-sales       # run sales-service with local profile
 
 ---
 
+## Security Configuration for Local Development
+
+To ensure the production-grade security configuration works in local development, configure the following properties in each service's `application.yml`:
+
+```yaml
+app:
+  security:
+    cors:
+      allowed-origins: "http://localhost:8080,http://localhost:3000"  # Comma-separated list of allowed origins for CORS
+    headers:
+      hsts:
+        enabled: false  # Set to false in local development to avoid HTTPS redirects
+```
+
+For production, set `hsts.enabled` to `true` and configure `allowed-origins` to the actual frontend domains.
+
 *Generated from VSMS README.md analysis — Last updated: 2026-03-28*

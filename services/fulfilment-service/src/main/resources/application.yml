@@ -18,7 +18,7 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
   flyway:
     enabled: true
-    schemas: vsms_fulfilment
+    schemas: vsms_fulfilment_service
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: 5672

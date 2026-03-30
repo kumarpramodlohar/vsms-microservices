@@ -45,6 +45,7 @@ The system follows a **microservices architecture** with:
 - **Database per Service**: Each service owns its database
 - **Circuit Breaker**: Resilience4j for fault tolerance
 - **Distributed Tracing**: OpenTelemetry with Zipkin
+- **Centralized Security**: Shared security configuration (JWT, CORS, HSTS) across all services
 
 ### Microservices Architecture Definition
 
@@ -56,7 +57,7 @@ This project implements a **Domain-Driven Design (DDD) based Microservices Archi
 |---------|------|--------|
 | `api-gateway` | **API Gateway** | Single entry point, routing, JWT validation, load balancing |
 | `eureka-server` | **Service Discovery** | Service registration and discovery |
-| `shared/vsms-common` | **Shared Library** | Common utilities, exceptions, security config |
+| `shared/vsms-common` | **Shared Library** | Common utilities, exceptions, security config (CORS, HSTS, JWT) |
 
 #### 2. Core Domain Services (Business Logic)
 
@@ -174,7 +175,7 @@ This project implements a **Domain-Driven Design (DDD) based Microservices Archi
 | Java | 21 | Primary language for most services |
 | Spring Boot | 3.4.3 | Application framework |
 | Spring Cloud | 2024.0.0 | Microservices infrastructure |
-| Spring Security | OAuth2 Resource Server | Authentication & Authorization |
+| Spring Security | OAuth2 Resource Server + CORS + HSTS | Authentication & Authorization |
 | Spring Data JPA | Hibernate | Database ORM |
 | Flyway | Latest | Database migrations |
 | Lombok | Latest | Boilerplate reduction |
@@ -207,6 +208,7 @@ This project implements a **Domain-Driven Design (DDD) based Microservices Archi
 **Responsibilities**:
 - Route requests to downstream services
 - Validate JWT tokens against auth-service JWKS
+- Apply comprehensive security headers (CORS, HSTS, CSRF protection)
 - Load balancing via Eureka
 - Circuit breaking with Resilience4j
 
@@ -528,6 +530,22 @@ vsms_drs           - Document service
 ---
 
 ## 🚀 Getting Started
+
+#### Quick Start with Application Scripts
+```bash
+# Start the entire application stack
+./start-application.sh
+
+# Stop the entire application stack
+./stop-application.sh
+
+# Manage individual services (recommended for development)
+./manage-service.sh start customer-service
+./manage-service.sh restart api-gateway
+./manage-service.sh status
+```
+
+> 📖 **See [APPLICATION-MANAGEMENT.md](APPLICATION-MANAGEMENT.md)** for detailed script usage and development workflows.
 
 ### Prerequisites
 - Docker & Docker Compose
